@@ -71,15 +71,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
           <CardHeader className="p-0">
             {/* Gambar Produk */}
             <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center overflow-hidden">
-              {product.image ? (
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                />
-              ) : (
-                <Package className="h-12 w-12 text-gray-300" />
-              )}
+              <Package className="h-12 w-12 text-gray-300" />
             </div>
           </CardHeader>
 
