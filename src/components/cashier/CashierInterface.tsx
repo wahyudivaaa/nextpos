@@ -32,7 +32,7 @@ export default function CashierInterface({ initialProducts }: CashierInterfacePr
     if (searchQuery) {
       filtered = filtered.filter(product =>
         product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.barcode?.toLowerCase().includes(searchQuery.toLowerCase())
+        product.sku?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     }
 
@@ -66,7 +66,7 @@ export default function CashierInterface({ initialProducts }: CashierInterfacePr
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
             <Input
-              placeholder="Cari produk atau scan barcode..."
+              placeholder="Cari produk berdasarkan nama atau SKU..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 h-11 text-base"
