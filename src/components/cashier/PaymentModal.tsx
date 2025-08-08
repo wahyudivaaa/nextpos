@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useCartStore } from '@/lib/store'
 import { supabase, PaymentMethod } from '@/lib/supabase'
-import { offlineDB } from '@/lib/offline'
+import { addOfflineTransaction } from '@/lib/offline'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -112,10 +112,14 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
         toast.success('Transaksi berhasil disimpan')
       } else {
         // Mode offline - simpan ke IndexedDB
-        await offlineDB.addTransaction({
-          ...orderData,
-          timestamp: new Date().toISOString(),
-          synced: false
+        await addOfflineTransaction({
+          userId: 'offline-user', // Default user untuk mode offline
+          paymentMethod: orderData.payment_method,
+          items: orderData.items.map((item: any) => ({
+            productId: item.product_id,
+            quantity: item.quantity
+          })),
+          timestamp: Date.now()
         })
 
         toast.success('Transaksi disimpan offline')
