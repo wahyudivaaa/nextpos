@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -27,7 +27,11 @@ export default function DashboardLayout({
   const [user, setUser] = useState<any>(null)
   const [isOnline, setIsOnline] = useState(true)
   const router = useRouter()
+  const pathname = usePathname()
   const totalItems = useCartStore((state) => state.getTotalItems())
+  
+  // Sembunyikan header di halaman dashboard utama
+  const isDashboardHome = pathname === '/'
 
   useEffect(() => {
     // Cek status autentikasi
@@ -90,8 +94,9 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      {/* Header - Sembunyikan di halaman dashboard utama */}
+      {!isDashboardHome && (
+        <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-8">
@@ -164,9 +169,10 @@ export default function DashboardLayout({
           </div>
         </div>
       </header>
+      )}
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isDashboardHome ? 'py-0' : 'py-8'}`}>
         {children}
       </main>
     </div>
