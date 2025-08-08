@@ -7,12 +7,14 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Package, ShoppingCart } from 'lucide-react'
 import { useToast } from '@/components/ui/toast-provider'
+import { Loading } from '@/components/ui/loading'
 
 interface ProductGridProps {
   products: Product[]
+  loading?: boolean
 }
 
-export default function ProductGrid({ products }: ProductGridProps) {
+export default function ProductGrid({ products, loading = false }: ProductGridProps) {
   const addItem = useCartStore((state) => state.addItem)
   const { addToast } = useToast()
 
@@ -36,6 +38,14 @@ export default function ProductGrid({ products }: ProductGridProps) {
       console.error('Error adding to cart:', error)
       addToast('Gagal menambahkan produk ke keranjang', 'error')
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="py-12">
+        <Loading message="Memuat produk..." />
+      </div>
+    )
   }
 
   if (products.length === 0) {

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/ui/toast-provider'
+import { Loading } from '@/components/ui/loading'
 import { 
   Users, 
   Settings, 
@@ -158,10 +159,13 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Memuat data admin...</p>
+      <div className="space-y-6">
+        <div className="text-center sm:text-left">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Panel Admin</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Kelola sistem dan pengguna</p>
+        </div>
+        <div className="py-12">
+          <Loading message="Memuat data admin..." />
         </div>
       </div>
     )
@@ -238,7 +242,7 @@ export default function AdminPage() {
                   type="email"
                   placeholder="user@example.com"
                   value={newUserEmail}
-                  onChange={(e) => setNewUserEmail(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUserEmail(e.target.value)}
                   className="text-sm"
                 />
               </div>
@@ -249,7 +253,7 @@ export default function AdminPage() {
                   type="password"
                   placeholder="Password"
                   value={newUserPassword}
-                  onChange={(e) => setNewUserPassword(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUserPassword(e.target.value)}
                   className="text-sm"
                 />
               </div>

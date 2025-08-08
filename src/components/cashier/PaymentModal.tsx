@@ -98,19 +98,39 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
 
         if (itemsError) throw itemsError
 
-        // Update stok produk
+        // Update stok produk menggunakan stored function
+        console.log('Memulai update stok untuk', orderData.items.length, 'item')
         for (const item of orderData.items) {
-          const { error: stockError } = await supabase.rpc('update_product_stock', {
-            product_id: item.product_id,
-            quantity_sold: item.quantity
-          })
+          console.log(`Updating stock untuk produk ${item.product_id}, quantity: ${item.quantity}`)
           
+          const { error: stockError } = await supabase
+            .rpc('update_product_stock', {
+              product_id: item.product_id,
+              quantity_sold: item.quantity
+            })
+            
           if (stockError) {
             console.error('Error updating stock:', stockError)
+            throw stockError // Throw error jika update stok gagal
+          } else {
+            console.log(`Stok berhasil diupdate untuk produk ${item.product_id}`)
           }
         }
+        console.log('Semua stok berhasil diupdate')
 
         addToast('Transaksi berhasil disimpan', 'success')
+        
+        // Bersihkan keranjang dan tutup modal setelah semua operasi berhasil
+        clearCart()
+        onClose()
+
+        // Tampilkan struk (opsional)
+        showReceipt(orderData)
+
+        // Reload halaman setelah semua operasi selesai
+        setTimeout(() => {
+          window.location.reload()
+        }, 1000)
       } else {
         // Mode offline - simpan ke IndexedDB
         await addOfflineTransaction({
@@ -123,15 +143,15 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
           timestamp: Date.now()
         })
 
+        // Bersihkan keranjang dan tutup modal setelah operasi offline berhasil
+        clearCart()
+        onClose()
+
+        // Tampilkan struk (opsional)
+        showReceipt(orderData)
+
         addToast('Transaksi disimpan offline', 'success')
       }
-
-      // Bersihkan keranjang dan tutup modal
-      clearCart()
-      onClose()
-
-      // Tampilkan struk (opsional)
-      showReceipt(orderData)
 
     } catch (error) {
       console.error('Payment error:', error)
@@ -251,7 +271,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                   type="number"
                   placeholder="0"
                   value={cashReceived}
-                  onChange={(e) => setCashReceived(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCashReceived(e.target.value)}
                   className="mt-1"
                 />
               </div>

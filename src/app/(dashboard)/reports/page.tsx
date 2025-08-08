@@ -1,7 +1,9 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+'use client'
+
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { 
   Table,
   TableBody,
@@ -16,80 +18,107 @@ import {
   TrendingUp,
   Calendar,
   Users,
-  BarChart3
+  BarChart3,
+  Eye
 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { Loading } from '@/components/ui/loading'
+import { TransactionDetailModal } from '@/components/reports/TransactionDetailModal'
 
-async function getReportsData() {
-  const cookieStore = await cookies()
-  
-  // Validate Supabase environment variables
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  
-  if (!supabaseUrl || !supabaseKey || 
-      supabaseUrl.includes('YOUR_SUPABASE_PROJECT_URL') || 
-      supabaseKey.includes('YOUR_SUPABASE_ANON_KEY')) {
-    throw new Error('Supabase belum dikonfigurasi. Silakan update file .env.local dengan kredensial Supabase yang valid.')
-  }
-
-  const supabase = createServerClient(
-    supabaseUrl,
-    supabaseKey,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-      },
+interface Order {
+  id: string
+  total_amount: number
+  payment_method: string
+  status: string
+  created_at: string
+  order_items?: Array<{
+    id: string
+    quantity: number
+    price: number
+    product: {
+      name: string
     }
-  )
-
-  try {
-    const { data, error } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        order_items(
-          *,
-          product:products(name)
-        )
-      `)
-      .order('created_at', { ascending: false })
-      .limit(50)
-
-    if (error) throw error
-
-    const ordersData = data || []
-
-    // Hitung statistik
-    const totalSales = ordersData.reduce((sum, order) => sum + order.total_amount, 0)
-    const totalOrders = ordersData.length
-    const averageOrder = totalOrders > 0 ? totalSales / totalOrders : 0
-
-    // Statistik hari ini
-    const today = new Date().toISOString().split('T')[0]
-    const todayOrders = ordersData.filter(order => 
-      order.created_at.startsWith(today)
-    )
-    const todaySales = todayOrders.reduce((sum, order) => sum + order.total_amount, 0)
-
-    return {
-      totalSales,
-      totalOrders,
-      averageOrder,
-      todaySales,
-      todayOrders: todayOrders.length,
-      transactions: ordersData
-    }
-
-  } catch (error) {
-    console.error('Error fetching orders:', error)
-    throw error
-  }
+  }>
 }
 
-export default async function ReportsPage() {
-  const data = await getReportsData()
+interface ReportsData {
+  totalSales: number
+  totalOrders: number
+  averageOrder: number
+  todaySales: number
+  todayOrders: number
+  transactions: Order[]
+}
+
+export default function ReportsPage() {
+  const [data, setData] = useState<ReportsData>({
+    totalSales: 0,
+    totalOrders: 0,
+    averageOrder: 0,
+    todaySales: 0,
+    todayOrders: 0,
+    transactions: []
+  })
+  const [loading, setLoading] = useState(true)
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+
+  useEffect(() => {
+    loadReportsData()
+  }, [])
+
+  const loadReportsData = async () => {
+    setLoading(true)
+    try {
+      const { data: ordersData, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items(
+            *,
+            product:products(name)
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      if (error) throw error
+
+      const orders = ordersData || []
+
+      // Hitung statistik
+      const totalSales = orders.reduce((sum, order) => sum + order.total_amount, 0)
+      const totalOrders = orders.length
+      const averageOrder = totalOrders > 0 ? totalSales / totalOrders : 0
+
+      // Statistik hari ini
+      const today = new Date().toISOString().split('T')[0]
+      const todayOrders = orders.filter(order => 
+        order.created_at.startsWith(today)
+      )
+      const todaySales = todayOrders.reduce((sum, order) => sum + order.total_amount, 0)
+
+      setData({
+        totalSales,
+        totalOrders,
+        averageOrder,
+        todaySales,
+        todayOrders: todayOrders.length,
+        transactions: orders
+      })
+
+    } catch (error) {
+      console.error('Error fetching orders:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleViewDetail = (orderId: string) => {
+    setSelectedOrderId(orderId)
+    setShowDetailModal(true)
+  }
+
   const { totalSales, totalOrders, averageOrder, todaySales, todayOrders, transactions } = data
 
   const getPaymentMethodBadge = (method: string) => {
@@ -107,6 +136,21 @@ export default async function ReportsPage() {
 
 
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Laporan Penjualan</h1>
+            <p className="text-sm sm:text-base text-gray-600">Analisis performa penjualan dan transaksi</p>
+          </div>
+        </div>
+        <div className="py-12">
+          <Loading message="Memuat data laporan..." />
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -217,6 +261,7 @@ export default async function ReportsPage() {
                   <TableHead>Metode Pembayaran</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Item</TableHead>
+                  <TableHead>Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -251,6 +296,17 @@ export default async function ReportsPage() {
                       <div className="text-sm text-gray-600">
                         {order.order_items?.length || 0} item
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewDetail(order.id)}
+                        className="flex items-center gap-2"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Detail
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -296,6 +352,15 @@ export default async function ReportsPage() {
                         {order.status === 'COMPLETED' ? 'Selesai' : order.status}
                       </Badge>
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewDetail(order.id)}
+                      className="flex items-center gap-1"
+                    >
+                      <Eye className="h-3 w-3" />
+                      Detail
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

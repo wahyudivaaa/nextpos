@@ -1,5 +1,6 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+'use client'
+
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -24,67 +25,119 @@ import {
   AlertTriangle,
   XCircle
 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { useToast } from '@/components/ui/toast-provider'
+import { Loading } from '@/components/ui/loading'
+import AddProductModal from '@/components/products/AddProductModal'
+import EditProductModal from '@/components/products/EditProductModal'
 
-async function getProductsAndCategories() {
-  const cookieStore = await cookies()
-  
-  // Validate Supabase environment variables
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  
-  if (!supabaseUrl || !supabaseKey || 
-      supabaseUrl.includes('YOUR_SUPABASE_PROJECT_URL') || 
-      supabaseKey.includes('YOUR_SUPABASE_ANON_KEY')) {
-    throw new Error('Supabase belum dikonfigurasi. Silakan update file .env.local dengan kredensial Supabase yang valid.')
-  }
-
-  const supabase = createServerClient(
-    supabaseUrl,
-    supabaseKey,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-      },
-    }
-  )
-
-  try {
-    const [productsResponse, categoriesResponse] = await Promise.all([
-      supabase
-        .from('products')
-        .select(`
-          *,
-          category:categories(*)
-        `)
-        .order('name'),
-      supabase
-        .from('categories')
-        .select('*')
-        .order('name')
-    ])
-
-    if (productsResponse.error) throw productsResponse.error
-    if (categoriesResponse.error) throw categoriesResponse.error
-
-    return {
-      products: productsResponse.data || [],
-      categories: categoriesResponse.data || []
-    }
-  } catch (error) {
-    console.error('Error fetching data:', error)
-    throw error
-  }
+interface Product {
+  id: string
+  name: string
+  description: string | null
+  price: number
+  stock: number
+  barcode: string | null
+  category_id: string | null
+  category?: { name: string }
 }
 
-export default async function ProductsPage() {
-  const { products, categories } = await getProductsAndCategories()
+interface Category {
+  id: string
+  name: string
+}
+
+export default function ProductsPage() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const { addToast } = useToast()
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  useEffect(() => {
+    // Filter produk berdasarkan pencarian
+    if (searchQuery) {
+      const filtered = products.filter(product =>
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.barcode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.category?.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      setFilteredProducts(filtered)
+    } else {
+      setFilteredProducts(products)
+    }
+  }, [products, searchQuery])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      const [productsResponse, categoriesResponse] = await Promise.all([
+        supabase
+          .from('products')
+          .select(`
+            *,
+            category:categories(name)
+          `)
+          .order('name'),
+        supabase
+          .from('categories')
+          .select('*')
+          .order('name')
+      ])
+
+      if (productsResponse.error) throw productsResponse.error
+      if (categoriesResponse.error) throw categoriesResponse.error
+
+      setProducts(productsResponse.data || [])
+      setCategories(categoriesResponse.data || [])
+    } catch (error) {
+      console.error('Error loading data:', error)
+      addToast('Gagal memuat data produk', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!confirm('Yakin ingin menghapus produk ini?')) return
+
+    try {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId)
+
+      if (error) throw error
+
+      addToast('Produk berhasil dihapus', 'success')
+      loadData()
+    } catch (error) {
+      console.error('Error deleting product:', error)
+      addToast('Gagal menghapus produk', 'error')
+    }
+  }
+
+  const handleEditProduct = (product: Product) => {
+    setSelectedProduct(product)
+    setShowEditModal(true)
+  }
+
+  if (loading) {
+    return <Loading message="Memuat data produk..." />
+  }
 
   // Hitung statistik produk
-  const activeProducts = products.filter(p => p.stock > 0).length
-  const lowStockProducts = products.filter(p => p.stock > 0 && p.stock <= 5).length
-  const outOfStockProducts = products.filter(p => p.stock === 0).length
+  const activeProducts = filteredProducts.filter(p => p.stock > 0).length
+  const lowStockProducts = filteredProducts.filter(p => p.stock > 0 && p.stock <= 5).length
+  const outOfStockProducts = filteredProducts.filter(p => p.stock === 0).length
 
   return (
     <div className="space-y-6">
@@ -94,7 +147,10 @@ export default async function ProductsPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Manajemen Produk</h1>
           <p className="text-sm sm:text-base text-gray-600">Kelola produk dan inventori toko Anda</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
+        <Button 
+          className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
+          onClick={() => setShowAddModal(true)}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Tambah Produk
         </Button>
@@ -166,6 +222,8 @@ export default async function ProductsPage() {
           <Input
             placeholder="Cari produk..."
             className="pl-10 w-full sm:w-80"
+            value={searchQuery}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
           />
         </div>
         <div className="flex space-x-2">
@@ -201,7 +259,7 @@ export default async function ProductsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products.map((product) => (
+                {filteredProducts.map((product) => (
                   <TableRow key={product.id}>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>
@@ -227,10 +285,19 @@ export default async function ProductsPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditProduct(product)}
+                        >
                           <Edit className="h-3 w-3" />
                         </Button>
-                        <Button variant="outline" size="sm" className="text-red-600">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-red-600"
+                          onClick={() => handleDeleteProduct(product.id)}
+                        >
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
@@ -243,7 +310,7 @@ export default async function ProductsPage() {
 
           {/* Mobile Card View */}
           <div className="md:hidden space-y-3">
-            {products.map((product) => (
+            {filteredProducts.map((product) => (
               <Card key={product.id} className="border border-gray-200">
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start mb-3">
@@ -256,10 +323,19 @@ export default async function ProductsPage() {
                       )}
                     </div>
                     <div className="flex space-x-1">
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleEditProduct(product)}
+                      >
                         <Edit className="h-3 w-3" />
                       </Button>
-                      <Button variant="outline" size="sm" className="text-red-600">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-red-600"
+                        onClick={() => handleDeleteProduct(product.id)}
+                      >
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
@@ -298,7 +374,7 @@ export default async function ProductsPage() {
             ))}
           </div>
 
-          {products.length === 0 && (
+          {filteredProducts.length === 0 && (
             <div className="text-center py-8">
               <Package className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">Tidak ada produk</h3>
@@ -309,6 +385,22 @@ export default async function ProductsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Modals */}
+      <AddProductModal 
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={loadData}
+        categories={categories}
+      />
+      
+      <EditProductModal 
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSuccess={loadData}
+        product={selectedProduct}
+        categories={categories}
+      />
     </div>
   )
 }
