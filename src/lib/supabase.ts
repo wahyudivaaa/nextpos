@@ -14,7 +14,7 @@ export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
 
 // Types untuk database
 export type UserRole = 'admin' | 'cashier'
-export type PaymentMethod = 'cash' | 'card' | 'qris'
+export type PaymentMethod = 'CASH' | 'CARD' | 'DIGITAL'
 
 export interface Profile {
   id: string
