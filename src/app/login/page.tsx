@@ -31,7 +31,7 @@ export default function LoginPage() {
 
       if (data.user) {
         toast.success('Login berhasil!')
-        router.push('/cashier')
+        router.push('/')
       }
     } catch (error) {
       toast.error('Terjadi kesalahan saat login')

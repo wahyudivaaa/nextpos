@@ -79,7 +79,7 @@ export async function updateSession(request: NextRequest) {
   // Jika user sudah login dan mengakses halaman login, redirect ke dashboard
   if (user && request.nextUrl.pathname === '/login') {
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    url.pathname = '/'
     return NextResponse.redirect(url)
   }
 
