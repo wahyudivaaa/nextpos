@@ -65,7 +65,7 @@ export default function Cart() {
       <div className="p-4">
         <div className="space-y-3 max-h-80 overflow-y-auto">
           {items.map((item) => (
-            <div key={item.id} className="p-3 bg-gray-50 rounded-lg border">
+            <div key={item.product.id} className="p-3 bg-gray-50 rounded-lg border">
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1 min-w-0">
                   <h4 className="font-medium text-sm text-gray-900 truncate">{item.product.name}</h4>
