@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react'
-import { toast } from 'sonner'
+import { useToast } from '@/components/ui/toast-provider'
 import { syncOfflineData } from '@/lib/offline'
 
 export default function OfflineIndicator() {
   const [isOnline, setIsOnline] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
+  const { addToast } = useToast()
 
   useEffect(() => {
     // Set initial online status
@@ -19,14 +20,14 @@ export default function OfflineIndicator() {
     // Listen for online/offline events
     const handleOnline = () => {
       setIsOnline(true)
-      toast.success('Koneksi internet tersambung kembali')
+      addToast('Koneksi internet tersambung kembali', 'success')
       // Auto sync when coming back online
       handleSync()
     }
 
     const handleOffline = () => {
       setIsOnline(false)
-      toast.warning('Koneksi internet terputus. Mode offline aktif.')
+      addToast('Koneksi internet terputus. Mode offline aktif.', 'error')
     }
 
     window.addEventListener('online', handleOnline)
@@ -58,14 +59,14 @@ export default function OfflineIndicator() {
     try {
       const result = await syncOfflineData()
       if (result.success) {
-        toast.success(`${result.message}`)
+        addToast(`${result.message}`, 'success')
         setPendingCount(0)
       } else {
-        toast.error('Gagal menyinkronkan data')
+        addToast('Gagal menyinkronkan data', 'error')
       }
     } catch (error) {
       console.error('Sync error:', error)
-      toast.error('Terjadi kesalahan saat sinkronisasi')
+      addToast('Terjadi kesalahan saat sinkronisasi', 'error')
     } finally {
       setIsSyncing(false)
     }

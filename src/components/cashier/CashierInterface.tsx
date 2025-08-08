@@ -61,26 +61,29 @@ export default function CashierInterface({ initialProducts }: CashierInterfacePr
   return (
     <div className="space-y-6">
       {/* Search dan Filter */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border">
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+      <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm border">
+        <div className="flex flex-col gap-3 sm:gap-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
             <Input
-              placeholder="Cari produk berdasarkan nama atau SKU..."
+              placeholder="Cari produk..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-11 text-base"
+              className="pl-9 sm:pl-10 h-10 sm:h-11 text-sm sm:text-base"
             />
           </div>
           
-          <div className="flex items-center space-x-3">
-            <Filter className="h-5 w-5 text-gray-500" />
-            <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <div className="flex items-center space-x-2">
+              <Filter className="h-4 w-4 text-gray-500" />
+              <span className="text-sm text-gray-600 font-medium">Filter:</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               <Button
                 variant={selectedCategory === null ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSelectedCategory(null)}
-                className="h-9"
+                className="h-8 text-xs sm:h-9 sm:text-sm px-2 sm:px-3"
               >
                 Semua
               </Button>
@@ -90,7 +93,7 @@ export default function CashierInterface({ initialProducts }: CashierInterfacePr
                   variant={selectedCategory === category?.id?.toString() ? "default" : "outline"}
                   size="sm"
                   onClick={() => setSelectedCategory(category?.id?.toString() || null)}
-                  className="h-9"
+                  className="h-8 text-xs sm:h-9 sm:text-sm px-2 sm:px-3"
                 >
                   {category?.name}
                 </Button>
@@ -101,17 +104,17 @@ export default function CashierInterface({ initialProducts }: CashierInterfacePr
       </div>
 
       {/* Main Content */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
         {/* Panel Produk */}
-        <div className="xl:col-span-3 space-y-4">
+        <div className="lg:col-span-2 xl:col-span-3 space-y-3 sm:space-y-4">
           {/* Info Hasil */}
-          <div className="flex items-center justify-between text-sm text-gray-600">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm text-gray-600">
             <span>
               Menampilkan {filteredProducts.length} dari {products.length} produk
             </span>
             {searchQuery && (
-              <span>
-                Hasil pencarian: "{searchQuery}"
+              <span className="text-blue-600 font-medium">
+                Hasil: "{searchQuery}"
               </span>
             )}
           </div>
@@ -121,30 +124,35 @@ export default function CashierInterface({ initialProducts }: CashierInterfacePr
         </div>
 
         {/* Panel Keranjang */}
-        <div className="xl:col-span-1 relative">
-          {/* Container Keranjang dengan padding bottom untuk sticky checkout */}
-          <div className="pb-24">
-            <Cart />
-          </div>
-          
-          {/* Sticky Checkout Section */}
-          <div className="absolute bottom-0 left-0 right-0 bg-white p-4 rounded-lg shadow-lg border-2 border-gray-200 space-y-3">
-            <div className="flex justify-between items-center text-lg font-bold">
-              <span>Total:</span>
-              <span className="text-blue-600">Rp {(getTotalAmount() || 0).toLocaleString('id-ID')}</span>
+        <div className="lg:col-span-1 xl:col-span-1 order-first lg:order-last">
+          {/* Mobile: Keranjang di atas, Desktop: Keranjang di samping */}
+          <div className="lg:sticky lg:top-4">
+            <div className="lg:pb-24">
+              <Cart />
             </div>
             
-            <Button 
-              onClick={handleCheckout}
-              disabled={items.length === 0}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold"
-              size="lg"
-            >
-              Checkout ({items.length} item)
-            </Button>
+            {/* Sticky Checkout Section - Mobile: Fixed bottom, Desktop: Sticky dalam container */}
+            <div className="fixed bottom-0 left-0 right-0 lg:absolute lg:bottom-0 lg:left-0 lg:right-0 bg-white p-3 sm:p-4 rounded-t-lg lg:rounded-lg shadow-lg border-t-2 lg:border-2 border-gray-200 space-y-2 sm:space-y-3 z-50 lg:z-auto">
+              <div className="flex justify-between items-center text-base sm:text-lg font-bold">
+                <span>Total:</span>
+                <span className="text-blue-600">Rp {(getTotalAmount() || 0).toLocaleString('id-ID')}</span>
+              </div>
+              
+              <Button 
+                onClick={handleCheckout}
+                disabled={items.length === 0}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold text-sm sm:text-base"
+                size="lg"
+              >
+                Checkout ({items.length} item)
+              </Button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Spacer untuk mobile agar content tidak tertutup sticky checkout */}
+      <div className="h-24 lg:hidden"></div>
 
       {/* Modal Pembayaran */}
       {showPaymentModal && (

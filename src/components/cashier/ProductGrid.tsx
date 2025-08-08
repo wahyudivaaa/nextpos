@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Package, ShoppingCart } from 'lucide-react'
-import { toast } from 'sonner'
+import { useToast } from '@/components/ui/toast-provider'
 
 interface ProductGridProps {
   products: Product[]
@@ -14,28 +14,27 @@ interface ProductGridProps {
 
 export default function ProductGrid({ products }: ProductGridProps) {
   const addItem = useCartStore((state) => state.addItem)
+  const { addToast } = useToast()
 
   const handleAddToCart = (product: Product, e?: React.MouseEvent) => {
     e?.stopPropagation()
     
     try {
       if (!product) {
-        toast.error('Data produk tidak valid')
+        addToast('Data produk tidak valid', 'error')
         return
       }
 
       if (product.stock <= 0) {
-        toast.error(`${product.name} sedang habis`)
+        addToast(`${product.name} sedang habis`, 'error')
         return
       }
 
       addItem(product)
-      toast.success(`${product.name} ditambahkan ke keranjang`, {
-        icon: <ShoppingCart className="h-4 w-4" />
-      })
+      addToast(`${product.name} ditambahkan ke keranjang`, 'success')
     } catch (error) {
       console.error('Error adding to cart:', error)
-      toast.error('Gagal menambahkan produk ke keranjang')
+      addToast('Gagal menambahkan produk ke keranjang', 'error')
     }
   }
 

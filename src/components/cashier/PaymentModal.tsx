@@ -16,7 +16,7 @@ import {
   Calculator,
   Receipt
 } from 'lucide-react'
-import { toast } from 'sonner'
+import { useToast } from '@/components/ui/toast-provider'
 
 interface PaymentModalProps {
   isOpen: boolean
@@ -25,6 +25,7 @@ interface PaymentModalProps {
 
 export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
   const { items, getTotalAmount, clearCart } = useCartStore()
+  const { addToast } = useToast()
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH' as PaymentMethod)
   const [cashReceived, setCashReceived] = useState('')
   const [processing, setProcessing] = useState(false)
@@ -43,7 +44,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
 
   const handlePayment = async () => {
     if (paymentMethod === 'CASH' && cashAmount < totalAmount) {
-      toast.error('Jumlah uang tidak mencukupi')
+      addToast('Jumlah uang tidak mencukupi', 'error')
       return
     }
 
@@ -109,7 +110,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
           }
         }
 
-        toast.success('Transaksi berhasil disimpan')
+        addToast('Transaksi berhasil disimpan', 'success')
       } else {
         // Mode offline - simpan ke IndexedDB
         await addOfflineTransaction({
@@ -122,7 +123,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
           timestamp: Date.now()
         })
 
-        toast.success('Transaksi disimpan offline')
+        addToast('Transaksi disimpan offline', 'success')
       }
 
       // Bersihkan keranjang dan tutup modal
@@ -134,7 +135,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
 
     } catch (error) {
       console.error('Payment error:', error)
-      toast.error('Gagal memproses pembayaran')
+      addToast('Gagal memproses pembayaran', 'error')
     } finally {
       setProcessing(false)
     }

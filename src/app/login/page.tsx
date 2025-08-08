@@ -6,13 +6,14 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { toast } from 'sonner'
+import { useToast } from '@/components/ui/toast-provider'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const { addToast } = useToast()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,16 +26,16 @@ export default function LoginPage() {
       })
 
       if (error) {
-        toast.error('Login gagal: ' + error.message)
+        addToast('Login gagal: ' + error.message, 'error')
         return
       }
 
       if (data.user) {
-        toast.success('Login berhasil!')
+        addToast('Login berhasil!', 'success')
         router.push('/')
       }
     } catch (error) {
-      toast.error('Terjadi kesalahan saat login')
+      addToast('Terjadi kesalahan saat login', 'error')
     } finally {
       setLoading(false)
     }

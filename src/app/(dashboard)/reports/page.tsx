@@ -110,88 +110,90 @@ export default async function ReportsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Laporan Penjualan</h1>
-        <p className="text-gray-600">Analisis performa penjualan dan transaksi</p>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Laporan Penjualan</h1>
+          <p className="text-sm sm:text-base text-gray-600">Analisis performa penjualan dan transaksi</p>
+        </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-6">
             <div className="flex items-center space-x-2">
-              <DollarSign className="h-8 w-8 text-green-600" />
+              <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
               <div>
-                <p className="text-2xl font-bold">
+                <p className="text-lg sm:text-2xl font-bold">
                   Rp {(totalSales || 0).toLocaleString('id-ID')}
                 </p>
-                <p className="text-sm text-gray-600">Total Penjualan</p>
+                <p className="text-xs sm:text-sm text-gray-600">Total Penjualan</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-6">
             <div className="flex items-center space-x-2">
-              <ShoppingCart className="h-8 w-8 text-blue-600" />
+              <ShoppingCart className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
               <div>
-                <p className="text-2xl font-bold">{totalOrders}</p>
-                <p className="text-sm text-gray-600">Total Transaksi</p>
+                <p className="text-lg sm:text-2xl font-bold">{totalOrders}</p>
+                <p className="text-xs sm:text-sm text-gray-600">Total Transaksi</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-6">
             <div className="flex items-center space-x-2">
-              <TrendingUp className="h-8 w-8 text-purple-600" />
+              <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
               <div>
-                <p className="text-2xl font-bold">
+                <p className="text-lg sm:text-2xl font-bold">
                   Rp {(averageOrder || 0).toLocaleString('id-ID')}
                 </p>
-                <p className="text-sm text-gray-600">Rata-rata Transaksi</p>
+                <p className="text-xs sm:text-sm text-gray-600">Rata-rata Transaksi</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-6">
             <div className="flex items-center space-x-2">
-              <Calendar className="h-8 w-8 text-orange-600" />
+              <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-orange-600" />
               <div>
-                <p className="text-2xl font-bold">
+                <p className="text-lg sm:text-2xl font-bold">
                   Rp {(todaySales || 0).toLocaleString('id-ID')}
                 </p>
-                <p className="text-sm text-gray-600">Penjualan Hari Ini</p>
+                <p className="text-xs sm:text-sm text-gray-600">Penjualan Hari Ini</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-6">
             <div className="flex items-center space-x-2">
-              <Users className="h-8 w-8 text-indigo-600" />
+              <Users className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-600" />
               <div>
-                <p className="text-2xl font-bold">{todayOrders}</p>
-                <p className="text-sm text-gray-600">Transaksi Hari Ini</p>
+                <p className="text-lg sm:text-2xl font-bold">{todayOrders}</p>
+                <p className="text-xs sm:text-sm text-gray-600">Transaksi Hari Ini</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-6">
             <div className="flex items-center space-x-2">
-              <BarChart3 className="h-8 w-8 text-red-600" />
+              <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
               <div>
-                <p className="text-2xl font-bold">
+                <p className="text-lg sm:text-2xl font-bold">
                   {todayOrders > 0 ? ((todaySales || 0) / todayOrders).toLocaleString('id-ID') : '0'}
                 </p>
-                <p className="text-sm text-gray-600">Rata-rata Hari Ini</p>
+                <p className="text-xs sm:text-sm text-gray-600">Rata-rata Hari Ini</p>
               </div>
             </div>
           </CardContent>
@@ -201,57 +203,104 @@ export default async function ReportsPage() {
       {/* Recent Transactions */}
       <Card>
         <CardHeader>
-          <CardTitle>Transaksi Terbaru</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">Transaksi Terbaru</CardTitle>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID Transaksi</TableHead>
-                <TableHead>Tanggal</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Metode Pembayaran</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Item</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-mono text-sm">
-                    #{order.id.slice(-8)}
-                  </TableCell>
-                  <TableCell>
-                    {new Date(order.created_at).toLocaleDateString('id-ID', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    Rp {(order.total_amount || 0).toLocaleString('id-ID')}
-                  </TableCell>
-                  <TableCell>
-                    {getPaymentMethodBadge(order.payment_method)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={order.status === 'COMPLETED' ? 'default' : 'secondary'}
-                    >
-                      {order.status === 'COMPLETED' ? 'Selesai' : order.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm text-gray-600">
-                      {order.order_items?.length || 0} item
-                    </div>
-                  </TableCell>
+        <CardContent className="p-3 sm:p-6">
+          {/* Desktop Table View */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID Transaksi</TableHead>
+                  <TableHead>Tanggal</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Metode Pembayaran</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Item</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {transactions.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-mono text-sm">
+                      #{order.id.slice(-8)}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(order.created_at).toLocaleDateString('id-ID', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      Rp {(order.total_amount || 0).toLocaleString('id-ID')}
+                    </TableCell>
+                    <TableCell>
+                      {getPaymentMethodBadge(order.payment_method)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={order.status === 'COMPLETED' ? 'default' : 'secondary'}
+                      >
+                        {order.status === 'COMPLETED' ? 'Selesai' : order.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm text-gray-600">
+                        {order.order_items?.length || 0} item
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {transactions.map((order) => (
+              <Card key={order.id} className="border border-gray-200">
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <p className="font-mono text-sm text-gray-600">#{order.id.slice(-8)}</p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(order.created_at).toLocaleDateString('id-ID', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-lg">
+                        Rp {(order.total_amount || 0).toLocaleString('id-ID')}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {order.order_items?.length || 0} item
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <div className="flex gap-2">
+                      {getPaymentMethodBadge(order.payment_method)}
+                      <Badge 
+                        variant={order.status === 'COMPLETED' ? 'default' : 'secondary'}
+                        className="text-xs"
+                      >
+                        {order.status === 'COMPLETED' ? 'Selesai' : order.status}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
           {transactions.length === 0 && (
             <div className="text-center py-8">
