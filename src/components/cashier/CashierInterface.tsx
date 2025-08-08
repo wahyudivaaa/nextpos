@@ -39,7 +39,7 @@ export default function CashierInterface({ initialProducts }: CashierInterfacePr
     // Filter berdasarkan kategori
     if (selectedCategory) {
       filtered = filtered.filter(product => 
-        product.category?.id === selectedCategory
+        product.category?.id === parseInt(selectedCategory)
       )
     }
 
@@ -87,9 +87,9 @@ export default function CashierInterface({ initialProducts }: CashierInterfacePr
               {categories.map((category) => (
                 <Button
                   key={category?.id}
-                  variant={selectedCategory === category?.id ? "default" : "outline"}
+                  variant={selectedCategory === category?.id?.toString() ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setSelectedCategory(category?.id || null)}
+                  onClick={() => setSelectedCategory(category?.id?.toString() || null)}
                   className="h-9"
                 >
                   {category?.name}
