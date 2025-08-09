@@ -81,6 +81,8 @@ export default function EditProductModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    console.log('EditProductModal: handleSubmit called', { product, formData })
+    
     if (!product || !formData.name || !formData.price || !formData.stock) {
       addToast('Nama, harga, dan stok harus diisi', 'error')
       return
@@ -89,6 +91,7 @@ export default function EditProductModal({
     setLoading(true)
 
     try {
+      console.log('EditProductModal: Updating product in database...', product.id)
       const { error } = await supabase
         .from('products')
         .update({
@@ -101,13 +104,17 @@ export default function EditProductModal({
         })
         .eq('id', product.id)
 
-      if (error) throw error
+      if (error) {
+        console.error('EditProductModal: Database error:', error)
+        throw error
+      }
 
+      console.log('EditProductModal: Product updated successfully')
       addToast('Produk berhasil diperbarui', 'success')
       onSuccess()
       onClose()
     } catch (error) {
-      console.error('Error updating product:', error)
+      console.error('EditProductModal: Error updating product:', error)
       addToast('Gagal memperbarui produk', 'error')
     } finally {
       setLoading(false)

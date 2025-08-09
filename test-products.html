@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test CRUD Produk - NextPOS</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; text-decoration: none; border-radius: 3px; display: inline-block; }
+        .button:hover { background: #0056b3; }
+        .error { color: red; font-weight: bold; }
+        .success { color: green; font-weight: bold; }
+        .checklist { list-style-type: none; }
+        .checklist li { margin: 5px 0; }
+        .checklist input[type="checkbox"] { margin-right: 10px; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Test CRUD Produk - NextPOS Cashier</h1>
+        
+        <div class="section">
+            <h2>🚀 Quick Actions</h2>
+            <a href="http://localhost:3000/login" class="button" target="_blank">Login</a>
+            <a href="http://localhost:3000/products" class="button" target="_blank">Halaman Produk</a>
+            <a href="http://localhost:3000" class="button" target="_blank">Dashboard</a>
+        </div>
+
+        <div class="section">
+            <h2>🔍 Masalah yang Ditemukan</h2>
+            <div class="error">
+                ❌ RLS (Row Level Security) Policies tidak lengkap!
+            </div>
+            <p>Tabel <code>products</code> dan <code>categories</code> hanya memiliki policy untuk SELECT, tapi tidak ada policy untuk INSERT, UPDATE, dan DELETE.</p>
+            
+            <h3>Solusi:</h3>
+            <ol>
+                <li>Jalankan file <code>fix-rls-policies.sql</code> di Supabase SQL Editor</li>
+                <li>Atau copy-paste SQL berikut ke Supabase:</li>
+            </ol>
+            
+            <pre>-- Fix RLS Policies untuk CRUD operations
+CREATE POLICY "Allow authenticated users to insert products" ON products
+  FOR INSERT TO authenticated WITH CHECK (true);
+
+CREATE POLICY "Allow authenticated users to update products" ON products
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow authenticated users to delete products" ON products
+  FOR DELETE TO authenticated USING (true);
+
+CREATE POLICY "Allow authenticated users to insert categories" ON categories
+  FOR INSERT TO authenticated WITH CHECK (true);
+
+CREATE POLICY "Allow authenticated users to update categories" ON categories
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow authenticated users to delete categories" ON categories
+  FOR DELETE TO authenticated USING (true);</pre>
+        </div>
+
+        <div class="section">
+            <h2>✅ Checklist Testing</h2>
+            <ul class="checklist">
+                <li><input type="checkbox"> 1. Jalankan SQL fix di Supabase</li>
+                <li><input type="checkbox"> 2. Login ke aplikasi</li>
+                <li><input type="checkbox"> 3. Buka halaman produk</li>
+                <li><input type="checkbox"> 4. Test tambah produk baru</li>
+                <li><input type="checkbox"> 5. Test edit produk existing</li>
+                <li><input type="checkbox"> 6. Test hapus produk</li>
+                <li><input type="checkbox"> 7. Cek console log untuk error</li>
+                <li><input type="checkbox"> 8. Cek network tab untuk failed requests</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>🐛 Debug Console Commands</h2>
+            <p>Jalankan di browser console untuk debugging:</p>
+            <pre>// Cek Supabase client
+console.log('Supabase:', window.supabase);
+
+// Cek user authentication
+console.log('User:', await window.supabase?.auth.getUser());
+
+// Test manual insert
+const { data, error } = await window.supabase
+  .from('products')
+  .insert({
+    name: 'Test Product',
+    price: 10000,
+    stock: 5,
+    description: 'Test description'
+  });
+console.log('Insert result:', { data, error });</pre>
+        </div>
+
+        <div class="section">
+            <h2>📋 Langkah-langkah Testing</h2>
+            <ol>
+                <li><strong>Persiapan:</strong>
+                    <ul>
+                        <li>Pastikan development server berjalan (<code>npm run dev</code>)</li>
+                        <li>Jalankan SQL fix di Supabase SQL Editor</li>
+                    </ul>
+                </li>
+                <li><strong>Login:</strong>
+                    <ul>
+                        <li>Buka halaman login</li>
+                        <li>Login dengan akun yang valid</li>
+                    </ul>
+                </li>
+                <li><strong>Test Tambah Produk:</strong>
+                    <ul>
+                        <li>Klik tombol "Tambah Produk"</li>
+                        <li>Isi form dengan data valid</li>
+                        <li>Klik "Simpan"</li>
+                        <li>Cek apakah produk muncul di list</li>
+                    </ul>
+                </li>
+                <li><strong>Test Edit Produk:</strong>
+                    <ul>
+                        <li>Klik tombol edit pada produk</li>
+                        <li>Ubah beberapa field</li>
+                        <li>Klik "Simpan"</li>
+                        <li>Cek apakah perubahan tersimpan</li>
+                    </ul>
+                </li>
+                <li><strong>Test Hapus Produk:</strong>
+                    <ul>
+                        <li>Klik tombol hapus pada produk</li>
+                        <li>Konfirmasi penghapusan</li>
+                        <li>Cek apakah produk hilang dari list</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>🔧 Troubleshooting</h2>
+            <h3>Jika masih tidak berfungsi:</h3>
+            <ul>
+                <li>Cek browser console untuk error JavaScript</li>
+                <li>Cek Network tab untuk failed HTTP requests</li>
+                <li>Pastikan Supabase URL dan API key benar di <code>.env.local</code></li>
+                <li>Cek apakah user sudah login dengan benar</li>
+                <li>Restart development server</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Auto-refresh setiap 30 detik untuk monitoring
+        setTimeout(() => {
+            location.reload();
+        }, 30000);
+        
+        console.log('🔧 NextPOS Debug Helper loaded');
+        console.log('📍 Current URL:', window.location.href);
+        console.log('⏰ Auto-refresh in 30 seconds');
+    </script>
+</body>
+</html>

@@ -56,6 +56,8 @@ export default function AddProductModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    console.log('AddProductModal: handleSubmit called', formData)
+    
     if (!formData.name || !formData.price || !formData.stock) {
       addToast('Nama, harga, dan stok harus diisi', 'error')
       return
@@ -64,6 +66,7 @@ export default function AddProductModal({
     setLoading(true)
 
     try {
+      console.log('AddProductModal: Inserting product to database...')
       const { error } = await supabase
         .from('products')
         .insert({
@@ -75,8 +78,12 @@ export default function AddProductModal({
           category_id: formData.category_id || null
         })
 
-      if (error) throw error
+      if (error) {
+        console.error('AddProductModal: Database error:', error)
+        throw error
+      }
 
+      console.log('AddProductModal: Product added successfully')
       addToast('Produk berhasil ditambahkan', 'success')
       setFormData({
         name: '',
@@ -89,7 +96,7 @@ export default function AddProductModal({
       onSuccess()
       onClose()
     } catch (error) {
-      console.error('Error adding product:', error)
+      console.error('AddProductModal: Error adding product:', error)
       addToast('Gagal menambahkan produk', 'error')
     } finally {
       setLoading(false)

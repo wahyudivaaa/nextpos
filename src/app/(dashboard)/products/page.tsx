@@ -107,16 +107,26 @@ export default function ProductsPage() {
   }
 
   const handleDeleteProduct = async (productId: string) => {
-    if (!confirm('Yakin ingin menghapus produk ini?')) return
+    console.log('handleDeleteProduct called for product:', productId)
+    
+    if (!confirm('Yakin ingin menghapus produk ini?')) {
+      console.log('Delete cancelled by user')
+      return
+    }
 
     try {
+      console.log('Deleting product from database...')
       const { error } = await supabase
         .from('products')
         .delete()
         .eq('id', productId)
 
-      if (error) throw error
+      if (error) {
+        console.error('Database error during delete:', error)
+        throw error
+      }
 
+      console.log('Product deleted successfully')
       addToast('Produk berhasil dihapus', 'success')
       loadData()
     } catch (error) {
@@ -126,6 +136,7 @@ export default function ProductsPage() {
   }
 
   const handleEditProduct = (product: Product) => {
+    console.log('handleEditProduct called for product:', product)
     setSelectedProduct(product)
     setShowEditModal(true)
   }
@@ -149,7 +160,10 @@ export default function ProductsPage() {
         </div>
         <Button 
           className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
-          onClick={() => setShowAddModal(true)}
+          onClick={() => {
+            console.log('Add Product button clicked')
+            setShowAddModal(true)
+          }}
         >
           <Plus className="h-4 w-4 mr-2" />
           Tambah Produk
