@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useCartStore } from '@/lib/store'
 import OfflineIndicator from '@/components/OfflineIndicator'
+import { useAuth } from '@/lib/hooks/useAuth'
+import { MENU_ITEMS } from '@/lib/permissions'
 import { 
   ShoppingCart, 
   Package, 
@@ -15,7 +17,8 @@ import {
   LogOut, 
   User,
   Settings,
-  Home
+  Home,
+  LayoutDashboard
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast-provider'
 
@@ -24,40 +27,36 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [user, setUser] = useState<any>(null)
   const [isOnline, setIsOnline] = useState(true)
   const router = useRouter()
   const pathname = usePathname()
   const totalItems = useCartStore((state) => state.getTotalItems())
   const { addToast } = useToast()
+  const { user, profile, loading, checkPermission, signOut, roles, roleCount } = useAuth()
   
   // Sembunyikan header di halaman dashboard utama
   const isDashboardHome = pathname === '/'
+  
+  // Icon mapping
+  const iconMap = {
+    LayoutDashboard,
+    ShoppingCart,
+    Package,
+    BarChart3,
+    Settings,
+    User,
+    Home
+  }
+
+  // Filter menu items berdasarkan permission dan tambahkan icon component
+  const visibleMenuItems = MENU_ITEMS.filter(item => 
+    !item.permission || checkPermission(item.permission)
+  ).map(item => ({
+    ...item,
+    icon: iconMap[item.icon as keyof typeof iconMap] || Home
+  }))
 
   useEffect(() => {
-    // Cek status autentikasi
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setUser(user)
-      } else {
-        router.push('/login')
-      }
-    }
-
-    getUser()
-
-    // Listen untuk perubahan auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === 'SIGNED_OUT' || !session) {
-          router.push('/login')
-        } else if (session?.user) {
-          setUser(session.user)
-        }
-      }
-    )
-
     // Monitor status online/offline
     const handleOnline = () => setIsOnline(true)
     const handleOffline = () => setIsOnline(false)
@@ -66,28 +65,29 @@ export default function DashboardLayout({
     window.addEventListener('offline', handleOffline)
 
     return () => {
-      subscription.unsubscribe()
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
     }
-  }, [router])
+  }, [])
 
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      addToast('Gagal logout: ' + error.message, 'error')
-    } else {
-      addToast('Logout berhasil', 'success')
-      router.push('/login')
-    }
-  }
-
-  if (!user) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
           <p className="mt-2 text-gray-600">Memuat...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    router.push('/login')
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Mengarahkan ke halaman login...</p>
         </div>
       </div>
     )
@@ -105,45 +105,19 @@ export default function DashboardLayout({
               
               {/* Desktop Navigation */}
               <nav className="hidden lg:flex space-x-4">
-                <Link href="/">
-                  <Button variant="ghost" className="flex items-center space-x-2">
-                    <Home className="h-4 w-4" />
-                    <span>Dashboard</span>
-                  </Button>
-                </Link>
-
-                <Link href="/cashier">
-                  <Button variant="ghost" className="flex items-center space-x-2">
-                    <ShoppingCart className="h-4 w-4" />
-                    <span>Kasir</span>
-                    {totalItems > 0 && (
-                      <Badge variant="destructive" className="ml-1">
-                        {totalItems}
-                      </Badge>
-                    )}
-                  </Button>
-                </Link>
-                
-                <Link href="/products">
-                  <Button variant="ghost" className="flex items-center space-x-2">
-                    <Package className="h-4 w-4" />
-                    <span>Produk</span>
-                  </Button>
-                </Link>
-                
-                <Link href="/reports">
-                  <Button variant="ghost" className="flex items-center space-x-2">
-                    <BarChart3 className="h-4 w-4" />
-                    <span>Laporan</span>
-                  </Button>
-                </Link>
-
-                <Link href="/admin">
-                  <Button variant="ghost" className="flex items-center space-x-2">
-                    <Settings className="h-4 w-4" />
-                    <span>Admin</span>
-                  </Button>
-                </Link>
+                {visibleMenuItems.map((item) => (
+                  <Link key={item.href} href={item.href}>
+                    <Button variant="ghost" className="flex items-center space-x-2">
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                      {item.href === '/cashier' && totalItems > 0 && (
+                        <Badge variant="destructive" className="ml-1">
+                          {totalItems}
+                        </Badge>
+                      )}
+                    </Button>
+                  </Link>
+                ))}
               </nav>
             </div>
 
@@ -161,7 +135,7 @@ export default function DashboardLayout({
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={handleLogout}
+                onClick={signOut}
                 className="flex items-center space-x-1 sm:space-x-2"
               >
                 <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -174,46 +148,28 @@ export default function DashboardLayout({
         {/* Mobile Navigation */}
         <div className="lg:hidden bg-white border-t">
           <div className="max-w-7xl mx-auto px-3 sm:px-4">
+            {/* Mobile User Info */}
+            <div className="flex items-center py-2 border-b border-gray-100">
+              <div className="flex items-center space-x-2">
+                <User className="h-4 w-4" />
+                <span className="text-sm text-gray-700 truncate">{user.email}</span>
+              </div>
+            </div>
+            
             <nav className="flex justify-around py-2">
-              <Link href="/">
-                <Button variant="ghost" size="sm" className="flex flex-col items-center space-y-1 h-auto py-2">
-                  <Home className="h-4 w-4" />
-                  <span className="text-xs">Dashboard</span>
-                </Button>
-              </Link>
-
-              <Link href="/cashier">
-                <Button variant="ghost" size="sm" className="flex flex-col items-center space-y-1 h-auto py-2 relative">
-                  <ShoppingCart className="h-4 w-4" />
-                  <span className="text-xs">Kasir</span>
-                  {totalItems > 0 && (
-                    <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 text-xs p-0 flex items-center justify-center">
-                      {totalItems}
-                    </Badge>
-                  )}
-                </Button>
-              </Link>
-              
-              <Link href="/products">
-                <Button variant="ghost" size="sm" className="flex flex-col items-center space-y-1 h-auto py-2">
-                  <Package className="h-4 w-4" />
-                  <span className="text-xs">Produk</span>
-                </Button>
-              </Link>
-              
-              <Link href="/reports">
-                <Button variant="ghost" size="sm" className="flex flex-col items-center space-y-1 h-auto py-2">
-                  <BarChart3 className="h-4 w-4" />
-                  <span className="text-xs">Laporan</span>
-                </Button>
-              </Link>
-
-              <Link href="/admin">
-                <Button variant="ghost" size="sm" className="flex flex-col items-center space-y-1 h-auto py-2">
-                  <Settings className="h-4 w-4" />
-                  <span className="text-xs">Admin</span>
-                </Button>
-              </Link>
+              {visibleMenuItems.map((item) => (
+                <Link key={item.href} href={item.href}>
+                  <Button variant="ghost" size="sm" className="flex flex-col items-center space-y-1 h-auto py-2 relative">
+                    <item.icon className="h-4 w-4" />
+                    <span className="text-xs">{item.label}</span>
+                    {item.href === '/cashier' && totalItems > 0 && (
+                      <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 text-xs p-0 flex items-center justify-center">
+                        {totalItems}
+                      </Badge>
+                    )}
+                  </Button>
+                </Link>
+              ))}
             </nav>
           </div>
         </div>

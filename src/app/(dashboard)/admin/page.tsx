@@ -6,9 +6,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase'
+import { updateUserEmail } from '@/lib/supabase-admin'
 import { useToast } from '@/components/ui/toast-provider'
 import { Loading } from '@/components/ui/loading'
+import { useAuth } from '@/lib/hooks/useAuth'
+import { UserRole, ROLE_DESCRIPTIONS, hasPermission } from '@/lib/permissions'
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { 
   Users, 
   Settings, 
@@ -20,7 +25,8 @@ import {
   RefreshCw,
   AlertTriangle,
   CheckCircle,
-  XCircle
+  XCircle,
+  Edit
 } from 'lucide-react'
 
 interface User {
@@ -28,6 +34,22 @@ interface User {
   email: string
   created_at: string
   last_sign_in_at: string
+}
+
+interface UserProfile {
+  id: string
+  user_id: string
+  email: string // Email langsung dari profile
+  role: UserRole // Backward compatibility
+  roles: UserRole[] // New multi-role support
+  created_at: string
+  updated_at: string
+  last_sign_in_at?: string // Data login terakhir
+  users?: {
+    email: string
+    created_at: string
+    last_sign_in_at: string
+  }
 }
 
 interface SystemStats {
@@ -38,8 +60,9 @@ interface SystemStats {
   lastBackup: string
 }
 
-export default function AdminPage() {
+function AdminPageContent() {
   const [users, setUsers] = useState<User[]>([])
+  const [userProfiles, setUserProfiles] = useState<UserProfile[]>([])
   const [systemStats, setSystemStats] = useState<SystemStats>({
     totalUsers: 0,
     totalProducts: 0,
@@ -50,7 +73,13 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [newUserEmail, setNewUserEmail] = useState('')
   const [newUserPassword, setNewUserPassword] = useState('')
+  const [editingRole, setEditingRole] = useState<string | null>(null)
+  const [selectedRoles, setSelectedRoles] = useState<UserRole[]>(['CASHIER'])
+  const [editingUser, setEditingUser] = useState<string | null>(null)
+  const [editUserEmail, setEditUserEmail] = useState('')
+  const [editUserPassword, setEditUserPassword] = useState('')
   const { addToast } = useToast()
+  const { user: currentUser, checkPermission } = useAuth()
 
   useEffect(() => {
     loadAdminData()
@@ -60,25 +89,55 @@ export default function AdminPage() {
     try {
       setLoading(true)
       
-      // Load current user only (admin API not available in client)
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setUsers([{
-          id: user.id,
-          email: user.email || '',
-          created_at: user.created_at || '',
-          last_sign_in_at: user.last_sign_in_at || ''
-        }])
+      // Load user profiles with role information using the new view
+      let profiles: UserProfile[] = []
+      
+      // Try to load from view first
+      const { data: viewData, error: viewError } = await supabase
+        .from('user_profiles_with_roles')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (viewError) {
+        console.warn('View not available, falling back to profiles table:', viewError)
+        
+        // Fallback: Load from profiles table and manually get roles
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (profilesError) {
+          console.error('Error loading profiles:', profilesError)
+          addToast('Gagal memuat data pengguna', 'error')
+        } else {
+          // Transform profiles data to match UserProfile interface
+          profiles = (profilesData || []).map(profile => ({
+            id: profile.id,
+            user_id: profile.id,
+            email: profile.email,
+            role: profile.role,
+            roles: [profile.role], // Fallback to single role
+            created_at: profile.created_at,
+            updated_at: profile.updated_at,
+            last_sign_in_at: profile.last_login
+          }))
+        }
+      } else {
+        profiles = viewData || []
       }
+      
+      setUserProfiles(profiles)
 
       // Load system statistics
-      const [productsResult, ordersResult] = await Promise.all([
+      const [productsResult, ordersResult, profilesCount] = await Promise.all([
         supabase.from('products').select('id', { count: 'exact' }),
-        supabase.from('orders').select('id', { count: 'exact' })
+        supabase.from('orders').select('id', { count: 'exact' }),
+        supabase.from('profiles').select('id', { count: 'exact' })
       ])
 
       setSystemStats({
-        totalUsers: 1, // Current user only
+        totalUsers: profilesCount.count || 0,
         totalProducts: productsResult.count || 0,
         totalOrders: ordersResult.count || 0,
         databaseSize: '2.5 MB', // Placeholder
@@ -99,8 +158,146 @@ export default function AdminPage() {
       return
     }
 
-    // Note: User creation requires admin privileges on server-side
-    addToast('Fitur ini memerlukan akses admin server. Silakan hubungi administrator sistem.', 'error')
+    if (newUserPassword.length < 6) {
+      addToast('Password minimal 6 karakter', 'error')
+      return
+    }
+
+    if (selectedRoles.length === 0) {
+      addToast('Minimal satu role harus dipilih', 'error')
+      return
+    }
+
+    // Pembuatan user baru memerlukan admin privileges yang tidak tersedia
+    addToast('Pembuatan user baru memerlukan akses admin server. Silakan hubungi administrator sistem untuk membuat user baru.', 'warning')
+    
+    // Reset form
+    setNewUserEmail('')
+    setNewUserPassword('')
+    setSelectedRoles(['CASHIER'])
+  }
+
+  const updateUser = async (profileId: string) => {
+    try {
+      setLoading(true)
+      const profile = userProfiles.find(p => p.id === profileId)
+      if (!profile) {
+        addToast('Profil pengguna tidak ditemukan', 'error')
+        return
+      }
+
+      // Use profile.user_id if available, otherwise use profile.id (for fallback compatibility)
+      const userId = profile.user_id || profile.id
+      
+      let hasUpdates = false
+      let messages = []
+      
+      // Update email di auth.users dan profiles jika berubah
+      if (editUserEmail && editUserEmail !== profile.email) {
+        // Update email menggunakan helper function (Admin API atau RPC fallback)
+        const { error: emailError } = await updateUserEmail(userId, editUserEmail)
+        
+        if (emailError) {
+          console.error('Error updating user email:', emailError)
+          throw new Error(`Gagal mengupdate email: ${emailError.message}`)
+        }
+
+        hasUpdates = true
+        messages.push('Email berhasil diupdate di sistem auth dan profil')
+      }
+
+      // Cek jika ada password yang ingin diupdate
+      if (editUserPassword) {
+        messages.push('Update password memerlukan akses admin server')
+      }
+
+      // Berikan feedback berdasarkan apa yang terjadi
+      if (hasUpdates) {
+        addToast(messages.join('. '), 'success')
+      } else if (editUserPassword && !editUserEmail) {
+        addToast('Update password memerlukan akses admin server. Silakan hubungi administrator sistem.', 'warning')
+      } else if (!editUserEmail && !editUserPassword) {
+        addToast('Tidak ada perubahan yang dilakukan', 'info')
+      } else if (editUserEmail === profile.email) {
+        addToast('Email yang dimasukkan sama dengan email saat ini', 'info')
+      }
+      
+      // Reset form dan reload data hanya jika ada update
+      if (hasUpdates) {
+        setEditingUser(null)
+        setEditUserEmail('')
+        setEditUserPassword('')
+        loadAdminData()
+      }
+    } catch (error: any) {
+      console.error('Error updating user:', error)
+      addToast(error.message || 'Gagal mengupdate pengguna', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const updateUserRoles = async (userId: string, newRoles: UserRole[]) => {
+    try {
+      // Remove all existing roles for the user
+      const { error: removeError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId)
+
+      if (removeError) {
+        console.error('Error removing existing roles:', removeError)
+        addToast('Gagal menghapus role lama', 'error')
+        return
+      }
+
+      // Add new roles
+      if (newRoles.length > 0) {
+        const roleInserts = newRoles.map(role => ({
+          user_id: userId,
+          role: role,
+          assigned_by: currentUser?.id,
+          assigned_at: new Date().toISOString()
+        }))
+
+        const { error: insertError } = await supabase
+          .from('user_roles')
+          .insert(roleInserts)
+
+        if (insertError) {
+          console.error('Error inserting new roles:', insertError)
+          addToast('Gagal menambahkan role baru', 'error')
+          return
+        }
+      }
+
+      addToast('Role pengguna berhasil diupdate', 'success')
+      setEditingRole(null)
+      loadAdminData()
+    } catch (error) {
+      console.error('Error updating roles:', error)
+      addToast('Gagal mengupdate role pengguna', 'error')
+    }
+  }
+
+  // Backward compatibility function
+  const updateUserRole = async (profileId: string, newRole: UserRole) => {
+    const profile = userProfiles.find(p => p.id === profileId)
+    if (profile) {
+      // Use profile.user_id if available, otherwise use profile.id (for fallback compatibility)
+      const userId = profile.user_id || profile.id
+      await updateUserRoles(userId, [newRole])
+    }
+  }
+
+  const toggleRole = (role: UserRole) => {
+    setSelectedRoles(prev => {
+      if (prev.includes(role)) {
+        return prev.filter(r => r !== role)
+      } else {
+        return [...prev, role]
+      }
+    })
   }
 
   const deleteUser = async (userId: string) => {
@@ -251,43 +448,226 @@ export default function AdminPage() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Password"
+                  placeholder="Password minimal 6 karakter"
                   value={newUserPassword}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUserPassword(e.target.value)}
                   className="text-sm"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs sm:text-sm">Roles</Label>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    {(['ADMIN', 'MANAGER', 'CASHIER'] as UserRole[]).map((role) => (
+                      <Button
+                        key={role}
+                        type="button"
+                        size="sm"
+                        variant={selectedRoles.includes(role) ? "default" : "outline"}
+                        onClick={() => toggleRole(role)}
+                        className="h-8 px-3 text-xs"
+                      >
+                        {role}
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Pilih satu atau lebih role untuk pengguna baru. Default: CASHIER
+                  </p>
+                  {selectedRoles.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      <span className="text-xs text-gray-600">Terpilih:</span>
+                      {selectedRoles.map((role) => (
+                        <Badge key={role} variant="secondary" className="text-xs">
+                          {role}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <Button onClick={createUser} className="w-full text-sm">
                 Tambah Pengguna
               </Button>
             </div>
 
-            {/* Users List */}
+            {/* Users List with Role Management */}
             <div className="space-y-2">
-              <h4 className="font-medium text-sm sm:text-base">Daftar Pengguna</h4>
-              {users.map((user) => (
-                <div key={user.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg space-y-2 sm:space-y-0">
-                  <div className="flex-1">
-                    <p className="font-medium text-sm sm:text-base">{user.email}</p>
-                    <p className="text-xs sm:text-sm text-gray-500">
-                      Bergabung: {new Date(user.created_at).toLocaleDateString('id-ID')}
-                    </p>
+              <h4 className="font-medium text-sm sm:text-base">Daftar Pengguna & Role</h4>
+              {userProfiles.map((profile) => (
+                <div key={profile.id} className="flex flex-col p-3 border rounded-lg space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm sm:text-base">{profile.email}</p>
+                      <p className="text-xs sm:text-sm text-gray-500">
+                        Bergabung: {new Date(profile.created_at).toLocaleDateString('id-ID')}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-end space-x-2">
+                      {checkPermission('manage_users') && profile.user_id !== currentUser?.id && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingUser(profile.id)
+                            setEditUserEmail(profile.email)
+                            setEditUserPassword('')
+                          }}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => deleteUser(profile.user_id)}
+                        className="h-8 w-8 p-0"
+                        disabled={profile.user_id === currentUser?.id}
+                      >
+                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between sm:justify-end space-x-2">
-                    <Badge variant={user.last_sign_in_at ? "default" : "secondary"} className="text-xs">
-                      {user.last_sign_in_at ? "Aktif" : "Belum Login"}
-                    </Badge>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => deleteUser(user.id)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                    </Button>
+                  
+                  {/* Edit User Form */}
+                  {editingUser === profile.id && (
+                    <div className="space-y-3 p-3 bg-blue-50 rounded-lg border-t">
+                      <h5 className="font-medium text-sm">Edit Pengguna</h5>
+                      <div className="space-y-2">
+                        <Label htmlFor={`edit-email-${profile.id}`} className="text-xs sm:text-sm">Email</Label>
+                        <Input
+                          id={`edit-email-${profile.id}`}
+                          type="email"
+                          placeholder="user@example.com"
+                          value={editUserEmail}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditUserEmail(e.target.value)}
+                          className="text-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`edit-password-${profile.id}`} className="text-xs sm:text-sm">Password Baru</Label>
+                        <Input
+                          id={`edit-password-${profile.id}`}
+                          type="password"
+                          placeholder="Kosongkan jika tidak ingin mengubah password"
+                          value={editUserPassword}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditUserPassword(e.target.value)}
+                          className="text-sm"
+                        />
+                        <p className="text-xs text-gray-500">
+                          Kosongkan field password jika tidak ingin mengubah password
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          size="sm"
+                          onClick={() => updateUser(profile.id)}
+                          className="h-8 px-3 text-xs"
+                          disabled={!editUserEmail || editUserEmail === profile.email && !editUserPassword}
+                        >
+                          Simpan Perubahan
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingUser(null)
+                            setEditUserEmail('')
+                            setEditUserPassword('')
+                          }}
+                          className="h-8 px-3 text-xs"
+                        >
+                          Batal
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Multi-Role Management */}
+                  <div className="flex flex-col space-y-2 pt-2 border-t">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap gap-1">
+                        {profile.roles && profile.roles.length > 0 ? (
+                          profile.roles.map((role) => (
+                            <Badge key={role} variant="outline" className="text-xs">
+                              {role}
+                            </Badge>
+                          ))
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">
+                            Tidak ada role
+                          </Badge>
+                        )}
+                      </div>
+                      {checkPermission('manage_users') && profile.user_id !== currentUser?.id && !editingRole && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingRole(profile.id)
+                            setSelectedRoles(profile.roles || ['CASHIER'])
+                          }}
+                          className="h-8 px-3 text-xs"
+                        >
+                          Edit Role
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {editingRole === profile.id ? (
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <span className="text-sm font-medium">Pilih Roles:</span>
+                          <div className="flex flex-wrap gap-2">
+                            {(['ADMIN', 'MANAGER', 'CASHIER'] as UserRole[]).map((role) => (
+                              <Button
+                                key={role}
+                                size="sm"
+                                variant={selectedRoles.includes(role) ? "default" : "outline"}
+                                onClick={() => toggleRole(role)}
+                                className="h-8 px-3 text-xs"
+                              >
+                                {role}
+                              </Button>
+                            ))}
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            Klik untuk memilih/membatalkan role. Pengguna dapat memiliki beberapa role sekaligus.
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            size="sm"
+                            onClick={() => updateUserRoles(profile.user_id, selectedRoles)}
+                            className="h-8 px-3 text-xs"
+                            disabled={selectedRoles.length === 0}
+                          >
+                            Simpan ({selectedRoles.length} role)
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingRole(null)
+                              setSelectedRoles(['CASHIER'])
+                            }}
+                            className="h-8 px-3 text-xs"
+                          >
+                            Batal
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               ))}
+              
+              {userProfiles.length === 0 && (
+                <div className="text-center py-4 text-gray-500 text-sm">
+                  Belum ada pengguna terdaftar
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -373,5 +753,13 @@ export default function AdminPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function AdminPage() {
+  return (
+    <ProtectedRoute requiredPermissions={['manage_users']}>
+      <AdminPageContent />
+    </ProtectedRoute>
   )
 }

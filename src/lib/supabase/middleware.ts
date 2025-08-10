@@ -85,9 +85,10 @@ export async function updateSession(request: NextRequest) {
 
   // Jika user belum login dan mengakses halaman yang dilindungi, redirect ke login
   const protectedRoutes = ['/dashboard', '/cashier', '/products', '/reports', '/admin']
-  if (!user && protectedRoutes.some(route => 
-    route === '/' ? request.nextUrl.pathname === '/' : request.nextUrl.pathname.startsWith(route)
-  )) {
+  const isRootPath = request.nextUrl.pathname === '/'
+  const isProtectedRoute = protectedRoutes.some(route => request.nextUrl.pathname.startsWith(route))
+  
+  if (!user && (isRootPath || isProtectedRoute)) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

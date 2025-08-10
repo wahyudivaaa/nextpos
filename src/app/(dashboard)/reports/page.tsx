@@ -24,6 +24,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { Loading } from '@/components/ui/loading'
 import { TransactionDetailModal } from '@/components/reports/TransactionDetailModal'
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 
 interface Order {
   id: string
@@ -50,7 +51,7 @@ interface ReportsData {
   transactions: Order[]
 }
 
-export default function ReportsPage() {
+function ReportsPageContent() {
   const [data, setData] = useState<ReportsData>({
     totalSales: 0,
     totalOrders: 0,
@@ -379,5 +380,13 @@ export default function ReportsPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function ReportsPage() {
+  return (
+    <ProtectedRoute requiredPermissions={['view_reports']}>
+      <ReportsPageContent />
+    </ProtectedRoute>
   )
 }
