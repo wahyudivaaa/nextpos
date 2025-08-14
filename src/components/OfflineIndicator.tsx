@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react'
@@ -40,7 +40,7 @@ export default function OfflineIndicator() {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
     }
-  }, [])
+  }, [addToast, handleSync])
 
   const checkPendingTransactions = async () => {
     try {
@@ -52,7 +52,7 @@ export default function OfflineIndicator() {
     }
   }
 
-  const handleSync = async () => {
+  const handleSync = useCallback(async () => {
     if (!isOnline || isSyncing) return
 
     setIsSyncing(true)
@@ -70,7 +70,7 @@ export default function OfflineIndicator() {
     } finally {
       setIsSyncing(false)
     }
-  }
+  }, [isOnline, isSyncing, addToast])
 
   return (
     <div className="flex items-center space-x-2">

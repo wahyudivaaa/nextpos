@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -56,9 +56,9 @@ export function TransactionDetailModal({ isOpen, onClose, orderId }: Transaction
     if (isOpen && orderId) {
       loadOrderDetail()
     }
-  }, [isOpen, orderId])
+  }, [isOpen, orderId, loadOrderDetail])
 
-  const loadOrderDetail = async () => {
+  const loadOrderDetail = useCallback(async () => {
     if (!orderId) return
 
     setLoading(true)
@@ -83,7 +83,7 @@ export function TransactionDetailModal({ isOpen, onClose, orderId }: Transaction
     } finally {
       setLoading(false)
     }
-  }
+  }, [orderId])
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('id-ID', {

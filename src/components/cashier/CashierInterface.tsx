@@ -8,7 +8,6 @@ import Cart from './Cart'
 import PaymentModal from './PaymentModal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { Search, Filter } from 'lucide-react'
 
 interface CashierInterfaceProps {
@@ -16,7 +15,7 @@ interface CashierInterfaceProps {
 }
 
 export default function CashierInterface({ initialProducts }: CashierInterfaceProps) {
-  const [products, setProducts] = useState<Product[]>(initialProducts)
+  const [products] = useState<Product[]>(initialProducts)
   const [filteredProducts, setFilteredProducts] = useState<Product[]>(initialProducts)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)

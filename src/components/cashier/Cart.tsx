@@ -3,7 +3,6 @@
 import { useCartStore } from '@/lib/store'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Minus, Plus, Trash2, ShoppingCart } from 'lucide-react'
 
 export default function Cart() {

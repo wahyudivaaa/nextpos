@@ -5,7 +5,7 @@ import { useCartStore } from '@/lib/store'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Package, ShoppingCart } from 'lucide-react'
+import { Plus, Package } from 'lucide-react'
 import { useToast } from '@/components/ui/toast-provider'
 import { Loading } from '@/components/ui/loading'
 
