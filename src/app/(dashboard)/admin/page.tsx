@@ -190,7 +190,7 @@ function AdminPageContent() {
       const userId = profile.user_id || profile.id
       
       let hasUpdates = false
-      let messages = []
+      const messages: string[] = []
       
       // Update email di auth.users dan profiles jika berubah
       if (editUserEmail && editUserEmail !== profile.email) {
@@ -229,9 +229,10 @@ function AdminPageContent() {
         setEditUserPassword('')
         loadAdminData()
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating user:', error)
-      addToast(error.message || 'Gagal mengupdate pengguna', 'error')
+      const errorMessage = error instanceof Error ? error.message : 'Gagal mengupdate pengguna'
+      addToast(errorMessage, 'error')
     } finally {
       setLoading(false)
     }

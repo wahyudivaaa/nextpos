@@ -52,12 +52,6 @@ export function TransactionDetailModal({ isOpen, onClose, orderId }: Transaction
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    if (isOpen && orderId) {
-      loadOrderDetail()
-    }
-  }, [isOpen, orderId, loadOrderDetail])
-
   const loadOrderDetail = useCallback(async () => {
     if (!orderId) return
 
@@ -84,6 +78,12 @@ export function TransactionDetailModal({ isOpen, onClose, orderId }: Transaction
       setLoading(false)
     }
   }, [orderId])
+
+  useEffect(() => {
+    if (isOpen && orderId) {
+      loadOrderDetail()
+    }
+  }, [isOpen, orderId, loadOrderDetail])
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('id-ID', {

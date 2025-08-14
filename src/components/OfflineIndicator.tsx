@@ -13,35 +13,6 @@ export default function OfflineIndicator() {
   const [pendingCount, setPendingCount] = useState(0)
   const { addToast } = useToast()
 
-  useEffect(() => {
-    // Set initial online status
-    setIsOnline(navigator.onLine)
-
-    // Listen for online/offline events
-    const handleOnline = () => {
-      setIsOnline(true)
-      addToast('Koneksi internet tersambung kembali', 'success')
-      // Auto sync when coming back online
-      handleSync()
-    }
-
-    const handleOffline = () => {
-      setIsOnline(false)
-      addToast('Koneksi internet terputus. Mode offline aktif.', 'error')
-    }
-
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
-
-    // Check pending transactions count
-    checkPendingTransactions()
-
-    return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-    }
-  }, [addToast, handleSync])
-
   const checkPendingTransactions = async () => {
     try {
       const { getOfflineTransactions } = await import('@/lib/offline')
@@ -71,6 +42,35 @@ export default function OfflineIndicator() {
       setIsSyncing(false)
     }
   }, [isOnline, isSyncing, addToast])
+
+  useEffect(() => {
+    // Set initial online status
+    setIsOnline(navigator.onLine)
+
+    // Listen for online/offline events
+    const handleOnline = () => {
+      setIsOnline(true)
+      addToast('Koneksi internet tersambung kembali', 'success')
+      // Auto sync when coming back online
+      handleSync()
+    }
+
+    const handleOffline = () => {
+      setIsOnline(false)
+      addToast('Koneksi internet terputus. Mode offline aktif.', 'error')
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    // Check pending transactions count
+    checkPendingTransactions()
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [addToast, handleSync])
 
   return (
     <div className="flex items-center space-x-2">
