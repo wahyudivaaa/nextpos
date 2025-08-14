@@ -59,7 +59,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
         change_amount: paymentMethod === 'CASH' ? change : 0,
         status: 'COMPLETED' as const,
         items: items.map(item => ({
-          product_id: item.product.id,
+          product_id: item.product.id.toString(),
           quantity: item.quantity,
           price: item.product.price,
           subtotal: item.product.price * item.quantity
@@ -137,7 +137,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
           userId: 'offline-user', // Default user untuk mode offline
           paymentMethod: orderData.payment_method,
           items: orderData.items.map((item: { product_id: string; quantity: number; price?: number; subtotal?: number }) => ({
-            productId: item.product_id,
+            productId: parseInt(item.product_id),
             quantity: item.quantity
           })),
           timestamp: Date.now()
