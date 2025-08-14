@@ -136,7 +136,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
         await addOfflineTransaction({
           userId: 'offline-user', // Default user untuk mode offline
           paymentMethod: orderData.payment_method,
-          items: orderData.items.map((item: any) => ({
+          items: orderData.items.map((item: { product_id: string; quantity: number; price?: number; subtotal?: number }) => ({
             productId: item.product_id,
             quantity: item.quantity
           })),
@@ -161,7 +161,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
     }
   }
 
-  const showReceipt = (orderData: any) => {
+  const showReceipt = (orderData: { items: Array<{ product_id: string; quantity: number; price?: number; subtotal?: number }>; total_amount?: number; payment_method: string; cash_received?: number; change_amount?: number }) => {
     // Implementasi sederhana untuk menampilkan struk
     const receiptWindow = window.open('', '_blank', 'width=300,height=600')
     if (receiptWindow) {
@@ -182,7 +182,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
               <p>${new Date().toLocaleString('id-ID')}</p>
             </div>
             <div class="line"></div>
-            ${orderData.items.map((item: any) => `
+            ${orderData.items.map((item: { product_id: string; quantity: number; price?: number; subtotal?: number }) => `
               <div>
                 ${item.product_id} x${item.quantity}<br>
                 @ Rp ${(item.price || 0).toLocaleString('id-ID')}<br>

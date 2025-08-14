@@ -114,7 +114,7 @@ export default function CashierInterface({ initialProducts }: CashierInterfacePr
             </span>
             {searchQuery && (
               <span className="text-blue-600 font-medium">
-                Hasil: "{searchQuery}"
+                Hasil: &quot;{searchQuery}&quot;
               </span>
             )}
           </div>

@@ -33,7 +33,7 @@ export async function updateSession(request: NextRequest) {
         get(name: string) {
           return request.cookies.get(name)?.value
         },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: { [key: string]: unknown }) {
           request.cookies.set({
             name,
             value,
@@ -50,7 +50,7 @@ export async function updateSession(request: NextRequest) {
             ...options,
           })
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: { [key: string]: unknown }) {
           request.cookies.set({
             name,
             value: '',
