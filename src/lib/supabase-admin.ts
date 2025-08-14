@@ -4,7 +4,8 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-if (!supabaseUrl || !supabaseServiceKey) {
+// Hanya tampilkan warning di server environment (bukan di browser)
+if (typeof window === 'undefined' && (!supabaseUrl || !supabaseServiceKey)) {
   console.warn('Supabase Admin client tidak tersedia: Service Role Key tidak dikonfigurasi')
 }
 
