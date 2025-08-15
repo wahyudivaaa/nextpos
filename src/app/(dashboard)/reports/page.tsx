@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { 
   Table,
   TableBody,
@@ -19,12 +20,16 @@ import {
   Calendar,
   Users,
   BarChart3,
-  Eye
+  Eye,
+  Download,
+  Filter
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Loading } from '@/components/ui/loading'
 import { TransactionDetailModal } from '@/components/reports/TransactionDetailModal'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 
 interface Order {
   id: string
@@ -63,15 +68,18 @@ function ReportsPageContent() {
   const [loading, setLoading] = useState(true)
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [filteredData, setFilteredData] = useState<ReportsData | null>(null)
 
   useEffect(() => {
     loadReportsData()
   }, [])
 
-  const loadReportsData = async () => {
+  const loadReportsData = async (start?: string, end?: string) => {
     setLoading(true)
     try {
-      const { data: ordersData, error } = await supabase
+      let query = supabase
         .from('orders')
         .select(`
           *,
@@ -81,7 +89,17 @@ function ReportsPageContent() {
           )
         `)
         .order('created_at', { ascending: false })
-        .limit(50)
+
+      // Apply date filter if provided
+      if (start && end) {
+        query = query
+          .gte('created_at', start + 'T00:00:00')
+          .lte('created_at', end + 'T23:59:59')
+      } else {
+        query = query.limit(50)
+      }
+
+      const { data: ordersData, error } = await query
 
       if (error) throw error
 
@@ -99,14 +117,20 @@ function ReportsPageContent() {
       )
       const todaySales = todayOrders.reduce((sum, order) => sum + order.total_amount, 0)
 
-      setData({
+      const reportData = {
         totalSales,
         totalOrders,
         averageOrder,
         todaySales,
         todayOrders: todayOrders.length,
         transactions: orders
-      })
+      }
+
+      if (start && end) {
+        setFilteredData(reportData)
+      } else {
+        setData(reportData)
+      }
 
     } catch (error) {
       console.error('Error fetching orders:', error)
@@ -120,7 +144,59 @@ function ReportsPageContent() {
     setShowDetailModal(true)
   }
 
-  const { totalSales, totalOrders, averageOrder, todaySales, todayOrders, transactions } = data
+  const handleFilterByPeriod = () => {
+    if (startDate && endDate) {
+      loadReportsData(startDate, endDate)
+    }
+  }
+
+  const handleResetFilter = () => {
+    setStartDate('')
+    setEndDate('')
+    setFilteredData(null)
+    loadReportsData()
+  }
+
+  const exportToPDF = async () => {
+    try {
+      const element = document.getElementById('reports-content')
+      if (!element) return
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true
+      })
+
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      
+      const imgWidth = 210
+      const pageHeight = 295
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      let heightLeft = imgHeight
+      let position = 0
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight
+        pdf.addPage()
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        heightLeft -= pageHeight
+      }
+
+      const dateRange = startDate && endDate ? `_${startDate}_${endDate}` : '_semua'
+      pdf.save(`laporan-penjualan${dateRange}.pdf`)
+    } catch (error) {
+      console.error('Error exporting PDF:', error)
+      alert('Gagal mengekspor PDF. Silakan coba lagi.')
+    }
+  }
+
+  const currentData = filteredData || data
+  const { totalSales, totalOrders, averageOrder, todaySales, todayOrders, transactions } = currentData
 
   const getPaymentMethodBadge = (method: string) => {
     switch (method) {
@@ -153,14 +229,78 @@ function ReportsPageContent() {
     )
   }
   return (
-    <div className="space-y-6">
+    <div id="reports-content" className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Laporan Penjualan</h1>
           <p className="text-sm sm:text-base text-gray-600">Analisis performa penjualan dan transaksi</p>
         </div>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button
+            onClick={exportToPDF}
+            className="flex items-center gap-2"
+            variant="outline"
+          >
+            <Download className="h-4 w-4" />
+            Ekspor PDF
+          </Button>
+        </div>
       </div>
+
+      {/* Filter Periode */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filter Periode
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4 items-end">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tanggal Mulai
+              </label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tanggal Akhir
+              </label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleFilterByPeriod}
+                disabled={!startDate || !endDate}
+                className="flex items-center gap-2"
+              >
+                <Filter className="h-4 w-4" />
+                Filter
+              </Button>
+              <Button
+                onClick={handleResetFilter}
+                variant="outline"
+                disabled={!filteredData}
+              >
+                Reset
+              </Button>
+            </div>
+          </div>
+
+        </CardContent>
+      </Card>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -379,6 +519,13 @@ function ReportsPageContent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Transaction Detail Modal */}
+      <TransactionDetailModal
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        orderId={selectedOrderId}
+      />
     </div>
   )
 }

@@ -9,7 +9,10 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Receipt, Calendar, CreditCard, User, Package } from 'lucide-react'
+import { Button } from "@/components/ui/button"
+import { Receipt, Calendar, CreditCard, User, Package, Printer } from 'lucide-react'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 import { supabase } from '@/lib/supabase'
 import { Loading } from '@/components/ui/loading'
 
@@ -61,10 +64,9 @@ export function TransactionDetailModal({ isOpen, onClose, orderId }: Transaction
         .from('orders')
         .select(`
           *,
-          user:profiles(full_name, email),
           order_items(
             *,
-            product:products(name, barcode)
+            product:products(name, price)
           )
         `)
         .eq('id', orderId)
@@ -116,14 +118,66 @@ export function TransactionDetailModal({ isOpen, onClose, orderId }: Transaction
     )
   }
 
+  const printToPDF = async () => {
+    if (!order) return
+
+    try {
+      const element = document.getElementById('transaction-detail-content')
+      if (!element) return
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true
+      })
+
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      
+      const imgWidth = 210
+      const pageHeight = 295
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      let heightLeft = imgHeight
+
+      let position = 0
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight
+        pdf.addPage()
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        heightLeft -= pageHeight
+      }
+
+      pdf.save(`Detail-Transaksi-${order.id.slice(-8)}.pdf`)
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+    }
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Receipt className="h-5 w-5" />
-            Detail Transaksi
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" />
+              Detail Transaksi
+            </DialogTitle>
+            {order && (
+              <Button
+                onClick={printToPDF}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Printer className="h-4 w-4" />
+                Cetak PDF
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         {loading ? (
@@ -131,7 +185,7 @@ export function TransactionDetailModal({ isOpen, onClose, orderId }: Transaction
             <Loading message="Memuat detail transaksi..." />
           </div>
         ) : order ? (
-          <div className="space-y-6">
+          <div id="transaction-detail-content" className="space-y-6">
             {/* Header Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -155,8 +209,8 @@ export function TransactionDetailModal({ isOpen, onClose, orderId }: Transaction
                   <User className="h-4 w-4 text-gray-500" />
                   <span className="text-sm text-gray-600">Kasir</span>
                 </div>
-                <p className="text-sm">{order.user?.full_name || 'System'}</p>
-                <p className="text-xs text-gray-500">{order.user?.email || '-'}</p>
+                <p className="text-sm">System</p>
+                <p className="text-xs text-gray-500">-</p>
               </div>
 
               <div className="space-y-2">

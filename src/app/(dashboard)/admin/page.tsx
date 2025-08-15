@@ -14,6 +14,7 @@ import { Loading } from '@/components/ui/loading'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { UserRole, ROLE_DESCRIPTIONS, hasPermission } from '@/lib/permissions'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
+import * as XLSX from 'xlsx'
 import { 
   Users, 
   Settings, 
@@ -26,7 +27,8 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Edit
+  Edit,
+  FileSpreadsheet
 } from 'lucide-react'
 
 interface User {
@@ -308,32 +310,108 @@ function AdminPageContent() {
     addToast('Fitur ini memerlukan akses admin server. Silakan hubungi administrator sistem.', 'error')
   }
 
-  const exportData = async () => {
+  const exportProductsToExcel = async () => {
     try {
-      const [products, orders] = await Promise.all([
-        supabase.from('products').select('*'),
-        supabase.from('orders').select('*, order_items(*)')
-      ])
-
-      const exportData = {
-        products: products.data,
-        orders: orders.data,
-        exportDate: new Date().toISOString()
-      }
-
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-        type: 'application/json'
+      const { data: products, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      
+      // Format data untuk Excel
+      const excelData = products?.map(product => ({
+        'ID': product.id,
+        'Nama Produk': product.name,
+        'Kategori': product.category,
+        'Harga': product.price,
+        'Stok': product.stock,
+        'Deskripsi': product.description || '',
+        'Tanggal Dibuat': new Date(product.created_at).toLocaleDateString('id-ID'),
+        'Tanggal Diperbarui': new Date(product.updated_at).toLocaleDateString('id-ID')
+      })) || []
+      
+      // Buat workbook dan worksheet
+      const wb = XLSX.utils.book_new()
+      const ws = XLSX.utils.json_to_sheet(excelData)
+      
+      // Set lebar kolom
+      const colWidths = [
+        { wch: 10 }, // ID
+        { wch: 25 }, // Nama Produk
+        { wch: 15 }, // Kategori
+        { wch: 12 }, // Harga
+        { wch: 8 },  // Stok
+        { wch: 30 }, // Deskripsi
+        { wch: 15 }, // Tanggal Dibuat
+        { wch: 15 }  // Tanggal Diperbarui
+      ]
+      ws['!cols'] = colWidths
+      
+      XLSX.utils.book_append_sheet(wb, ws, 'Produk')
+      
+      // Download file
+      const fileName = `master-produk-${new Date().toISOString().split('T')[0]}.xlsx`
+      XLSX.writeFile(wb, fileName)
+      
+      addToast(`Data produk berhasil diekspor ke ${fileName}!`, 'success')
+    } catch (error) {
+      console.error('Error exporting products:', error)
+      addToast('Gagal mengekspor data produk', 'error')
+    }
+  }
+  
+  const importProductsFromExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    
+    try {
+      const data = await file.arrayBuffer()
+      const workbook = XLSX.read(data, { type: 'array' })
+      const sheetName = workbook.SheetNames[0]
+      const worksheet = workbook.Sheets[sheetName]
+      const jsonData: Array<{name?: string, price?: number, category?: string, stock?: number}> = XLSX.utils.sheet_to_json(worksheet)
+      
+      // Validasi dan format data
+      const productsToImport = jsonData.map((row: any) => {
+        // Mapping kolom Excel ke struktur database
+        const product = {
+          name: row['Nama Produk'] || row['name'] || '',
+          category: row['Kategori'] || row['category'] || 'Lainnya',
+          price: parseFloat(row['Harga'] || row['price'] || '0'),
+          stock: parseInt(row['Stok'] || row['stock'] || '0'),
+          description: row['Deskripsi'] || row['description'] || ''
+        }
+        
+        // Validasi data wajib
+        if (!product.name || product.price <= 0) {
+          throw new Error(`Data tidak valid: ${JSON.stringify(row)}`)
+        }
+        
+        return product
       })
       
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `nextpos-backup-${new Date().toISOString().split('T')[0]}.json`
-      a.click()
+      if (productsToImport.length === 0) {
+        addToast('Tidak ada data produk yang valid untuk diimpor', 'error')
+        return
+      }
       
-      addToast('Data berhasil diekspor', 'success')
+      // Import ke database
+      const { error } = await supabase
+        .from('products')
+        .insert(productsToImport)
+      
+      if (error) throw error
+      
+      addToast(`Berhasil mengimpor ${productsToImport.length} produk!`, 'success')
+      loadAdminData() // Refresh data
+      
+      // Reset input file
+      event.target.value = ''
     } catch (error) {
-      addToast('Gagal mengekspor data', 'error')
+      console.error('Error importing products:', error)
+      addToast('Gagal mengimpor data produk. Pastikan format Excel sesuai.', 'error')
+      event.target.value = ''
     }
   }
 
@@ -378,7 +456,7 @@ function AdminPageContent() {
       </div>
 
       {/* System Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4">
             <CardTitle className="text-xs sm:text-sm font-medium">Total Pengguna</CardTitle>
@@ -406,16 +484,6 @@ function AdminPageContent() {
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0">
             <div className="text-lg sm:text-2xl font-bold">{systemStats.totalOrders}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4">
-            <CardTitle className="text-xs sm:text-sm font-medium">Ukuran Database</CardTitle>
-            <Database className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-3 sm:p-4 pt-0">
-            <div className="text-lg sm:text-2xl font-bold">{systemStats.databaseSize}</div>
           </CardContent>
         </Card>
       </div>
@@ -684,19 +752,28 @@ function AdminPageContent() {
           <CardContent className="space-y-4 p-3 sm:p-6 pt-0">
             {/* Backup & Export */}
             <div className="space-y-3">
-              <h4 className="font-medium text-sm sm:text-base">Backup & Export</h4>
+              <h4 className="font-medium text-sm sm:text-base">Manajemen Data Produk</h4>
               <div className="space-y-2">
-                <Button onClick={exportData} className="w-full text-sm" variant="outline">
-                  <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                  Export Data
+                <Button onClick={exportProductsToExcel} className="w-full text-sm" variant="outline">
+                  <FileSpreadsheet className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                  Export Produk ke Excel
                 </Button>
-                <Button className="w-full text-sm" variant="outline" disabled>
-                  <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                  Import Data (Coming Soon)
-                </Button>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={importProductsFromExcel}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    id="import-excel"
+                  />
+                  <Button className="w-full text-sm" variant="outline">
+                    <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                    Import Produk dari Excel
+                  </Button>
+                </div>
               </div>
               <p className="text-xs sm:text-sm text-gray-500">
-                Backup terakhir: {systemStats.lastBackup}
+                Format Excel: Nama Produk, Kategori, Harga, Stok, Deskripsi
               </p>
             </div>
 
@@ -723,33 +800,7 @@ function AdminPageContent() {
               </div>
             </div>
 
-            {/* System Status */}
-            <div className="space-y-3">
-              <h4 className="font-medium text-sm sm:text-base">Status Sistem</h4>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs sm:text-sm">Database</span>
-                  <div className="flex items-center space-x-1">
-                    <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" />
-                    <span className="text-xs sm:text-sm text-green-600">Online</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs sm:text-sm">Supabase</span>
-                  <div className="flex items-center space-x-1">
-                    <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" />
-                    <span className="text-xs sm:text-sm text-green-600">Terhubung</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs sm:text-sm">Storage</span>
-                  <div className="flex items-center space-x-1">
-                    <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500" />
-                    <span className="text-xs sm:text-sm text-yellow-600">75% Terpakai</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+
           </CardContent>
         </Card>
       </div>

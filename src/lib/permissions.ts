@@ -74,13 +74,6 @@ export interface MenuItem {
 
 export const MENU_ITEMS: MenuItem[] = [
   {
-    label: 'Dashboard',
-    href: '/',
-    icon: 'LayoutDashboard',
-    permission: 'view_dashboard',
-    description: 'Ringkasan dan statistik sistem'
-  },
-  {
     label: 'Kasir',
     href: '/cashier',
     icon: 'ShoppingCart',
