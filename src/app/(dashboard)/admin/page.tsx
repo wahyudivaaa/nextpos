@@ -370,16 +370,31 @@ function AdminPageContent() {
       const workbook = XLSX.read(data, { type: 'array' })
       const sheetName = workbook.SheetNames[0]
       const worksheet = workbook.Sheets[sheetName]
-      const jsonData: Array<{name?: string, price?: number, category?: string, stock?: number}> = XLSX.utils.sheet_to_json(worksheet)
+      // Interface untuk data yang diimpor dari Excel
+      interface ProductImportRow {
+        'Nama Produk'?: string;
+        'name'?: string;
+        'Kategori'?: string;
+        'category'?: string;
+        'Harga'?: string | number;
+        'price'?: string | number;
+        'Stok'?: string | number;
+        'stock'?: string | number;
+        'Deskripsi'?: string;
+        'description'?: string;
+        [key: string]: string | number | undefined; // untuk kolom tambahan yang tidak terdefinisi
+      }
+
+      const jsonData: ProductImportRow[] = XLSX.utils.sheet_to_json(worksheet)
       
       // Validasi dan format data
-      const productsToImport = jsonData.map((row: any) => {
+      const productsToImport = jsonData.map((row: ProductImportRow) => {
         // Mapping kolom Excel ke struktur database
         const product = {
           name: row['Nama Produk'] || row['name'] || '',
           category: row['Kategori'] || row['category'] || 'Lainnya',
-          price: parseFloat(row['Harga'] || row['price'] || '0'),
-          stock: parseInt(row['Stok'] || row['stock'] || '0'),
+          price: parseFloat(String(row['Harga'] || row['price'] || '0')),
+          stock: parseInt(String(row['Stok'] || row['stock'] || '0')),
           description: row['Deskripsi'] || row['description'] || ''
         }
         
