@@ -22,7 +22,9 @@ import {
   BarChart3,
   Eye,
   Download,
-  Filter
+  Filter,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Loading } from '@/components/ui/loading'
@@ -71,6 +73,10 @@ function ReportsPageContent() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [filteredData, setFilteredData] = useState<ReportsData | null>(null)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(10)
 
   useEffect(() => {
     loadReportsData()
@@ -146,6 +152,7 @@ function ReportsPageContent() {
 
   const handleFilterByPeriod = () => {
     if (startDate && endDate) {
+      setCurrentPage(1) // Reset ke halaman pertama saat filter berubah
       loadReportsData(startDate, endDate)
     }
   }
@@ -153,6 +160,7 @@ function ReportsPageContent() {
   const handleResetFilter = () => {
     setStartDate('')
     setEndDate('')
+    setCurrentPage(1) // Reset ke halaman pertama saat filter direset
     setFilteredData(null)
     loadReportsData()
   }
@@ -195,8 +203,36 @@ function ReportsPageContent() {
     }
   }
 
+  // Pagination functions
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1)
+    }
+  }
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1)
+    }
+  }
+
   const currentData = filteredData || data
   const { totalSales, totalOrders, averageOrder, todaySales, todayOrders, transactions } = currentData
+  
+  // Pagination logic
+  const totalPages = Math.ceil(transactions.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedTransactions = transactions.slice(startIndex, endIndex)
+  
+  // Pagination info
+  const showingStart = transactions.length > 0 ? startIndex + 1 : 0
+  const showingEnd = Math.min(endIndex, transactions.length)
+  const totalTransactions = transactions.length
 
   const getPaymentMethodBadge = (method: string) => {
     switch (method) {
@@ -388,7 +424,14 @@ function ReportsPageContent() {
       {/* Recent Transactions */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Transaksi Terbaru</CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-lg sm:text-xl">Transaksi Terbaru</CardTitle>
+            {totalTransactions > 0 && (
+              <div className="text-sm text-gray-600">
+                Menampilkan {showingStart}-{showingEnd} dari {totalTransactions} transaksi
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="p-3 sm:p-6">
           {/* Desktop Table View */}
@@ -406,7 +449,7 @@ function ReportsPageContent() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions.map((order) => (
+                {paginatedTransactions.map((order) => (
                   <TableRow key={order.id}>
                     <TableCell className="font-mono text-sm">
                       #{order.id.slice(-8)}
@@ -457,7 +500,7 @@ function ReportsPageContent() {
 
           {/* Mobile Card View */}
           <div className="md:hidden space-y-3">
-            {transactions.map((order) => (
+            {paginatedTransactions.map((order) => (
               <Card key={order.id} className="border border-gray-200">
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start mb-3">
@@ -507,6 +550,66 @@ function ReportsPageContent() {
               </Card>
             ))}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrevPage}
+                  disabled={currentPage === 1}
+                  className="flex items-center gap-2"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Sebelumnya
+                </Button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handlePageChange(pageNum)}
+                        className="w-8 h-8 p-0"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                  className="flex items-center gap-2"
+                >
+                  Selanjutnya
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              <div className="text-sm text-gray-600">
+                Halaman {currentPage} dari {totalPages}
+              </div>
+            </div>
+          )}
 
           {transactions.length === 0 && (
             <div className="text-center py-8">
